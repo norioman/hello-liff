@@ -132,8 +132,10 @@
       el.className = "status" + (kind ? " " + kind : "");
     };
 
+    const DEFAULT_LIFF_ID = "2009931254-QLYpvjDp";
     const savedId = localStorage.getItem(STORAGE_KEY);
-    if (savedId) $("liffId").value = savedId;
+    const initialId = savedId || DEFAULT_LIFF_ID;
+    $("liffId").value = initialId;
 
     function syncButtons() {
       const loggedIn = liff.isLoggedIn();
@@ -163,11 +165,9 @@
       }
     });
 
-    if (savedId) {
-      initLiff(savedId).catch((e) => {
-        setStatus("init失敗: " + (e && e.message ? e.message : e), "err");
-      });
-    }
+    initLiff(initialId).catch((e) => {
+      setStatus("init失敗: " + (e && e.message ? e.message : e), "err");
+    });
 
     $("btnLogin").addEventListener("click", () => {
       if (!liff.isLoggedIn()) {

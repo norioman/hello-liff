@@ -18,8 +18,9 @@ function doPost(e) {
 }
 
 // 動作確認用（ブラウザでURLを直接開いた時）
+const VERSION = 'v2-findRow-fix';
 function doGet() {
-  return json({ ok: true, message: 'visit-point endpoint is alive' });
+  return json({ ok: true, message: 'visit-point endpoint is alive', version: VERSION });
 }
 
 function getSheet() {

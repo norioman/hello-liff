@@ -223,12 +223,18 @@
       $("envCard").hidden = false;
     }
 
+    function maskUserId(id) {
+      if (!id) return "";
+      if (id.length <= 9) return id;
+      return id.slice(0, 5) + "…" + id.slice(-4);
+    }
+
     async function renderProfile() {
       try {
         const profile = await liff.getProfile();
         currentProfile = profile;
         $("displayName").textContent = profile.displayName || "";
-        $("userId").textContent = profile.userId || "";
+        $("userId").textContent = maskUserId(profile.userId);
         $("statusMessage").textContent = profile.statusMessage || "";
         if (profile.pictureUrl) $("picture").src = profile.pictureUrl;
         try {

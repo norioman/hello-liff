@@ -135,24 +135,39 @@
     const savedId = localStorage.getItem(STORAGE_KEY);
     if (savedId) $("liffId").value = savedId;
 
+    function syncButtons() {
+      const loggedIn = liff.isLoggedIn();
+      $("btnLogin").disabled = loggedIn;
+      $("btnLogout").disabled = !loggedIn;
+    }
+
+    async function initLiff(liffId) {
+      localStorage.setItem(STORAGE_KEY, liffId);
+      setStatus("初期化中…");
+      await liff.init({ liffId });
+      setStatus("初期化完了", "ok");
+      syncButtons();
+      renderEnv();
+      if (liff.isLoggedIn()) {
+        await renderProfile();
+      }
+    }
+
     $("btnInit").addEventListener("click", async () => {
       const liffId = $("liffId").value.trim();
       if (!liffId) { setStatus("LIFF IDを入力してください", "err"); return; }
-      localStorage.setItem(STORAGE_KEY, liffId);
       try {
-        setStatus("初期化中…");
-        await liff.init({ liffId });
-        setStatus("初期化完了", "ok");
-        $("btnLogin").disabled = false;
-        $("btnLogout").disabled = false;
-        renderEnv();
-        if (liff.isLoggedIn()) {
-          await renderProfile();
-        }
+        await initLiff(liffId);
       } catch (e) {
         setStatus("init失敗: " + (e && e.message ? e.message : e), "err");
       }
     });
+
+    if (savedId) {
+      initLiff(savedId).catch((e) => {
+        setStatus("init失敗: " + (e && e.message ? e.message : e), "err");
+      });
+    }
 
     $("btnLogin").addEventListener("click", () => {
       if (!liff.isLoggedIn()) {

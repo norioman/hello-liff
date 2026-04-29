@@ -18,9 +18,17 @@ function doPost(e) {
 }
 
 // 動作確認用（ブラウザでURLを直接開いた時）
-const VERSION = 'v2-findRow-fix';
+const VERSION = 'v3-mask-userid';
 function doGet() {
   return json({ ok: true, message: 'visit-point endpoint is alive', version: VERSION });
+}
+
+// userIdをスプレッドシート公開時の安全のためにマスクする
+// 例: U1234567890abcdef... -> U1234…cdef
+function maskUserId(id) {
+  if (!id) return '';
+  if (id.length <= 9) return id;
+  return id.slice(0, 5) + '…' + id.slice(-4);
 }
 
 function getSheet() {
@@ -50,11 +58,12 @@ function nowStr()  { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:
 function checkin(userId, displayName) {
   if (!userId) return { ok: false, error: 'userId required' };
   const sheet = getSheet();
-  const row = findRow(sheet, userId);
+  const masked = maskUserId(userId);
+  const row = findRow(sheet, masked);
   const today = todayKey();
 
   if (row === -1) {
-    sheet.appendRow([userId, displayName || '', 1, nowStr(), 1]);
+    sheet.appendRow([masked, displayName || '', 1, nowStr(), 1]);
     return { ok: true, points: 1, visitCount: 1, alreadyCheckedIn: false, message: '初来店ありがとうございます！+1pt' };
   }
 
@@ -79,7 +88,7 @@ function checkin(userId, displayName) {
 function getStatus(userId) {
   if (!userId) return { ok: false, error: 'userId required' };
   const sheet = getSheet();
-  const row = findRow(sheet, userId);
+  const row = findRow(sheet, maskUserId(userId));
   if (row === -1) return { ok: true, points: 0, visitCount: 0, lastVisitAt: null };
   const points = Number(sheet.getRange(row, 3).getValue()) || 0;
   const visitCount = Number(sheet.getRange(row, 5).getValue()) || 0;

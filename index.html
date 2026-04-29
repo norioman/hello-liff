@@ -76,6 +76,14 @@
     .kv div { padding: 4px 0; border-bottom: 1px dashed var(--border); }
     .kv div:last-child { border-bottom: none; }
     .kv b { display: inline-block; min-width: 120px; color: var(--muted); font-weight: 500; }
+    .point-card { background: linear-gradient(135deg, #06c755, #04a548); color: white; border: none; }
+    .point-card h2 { color: rgba(255,255,255,0.85); margin-top: 0; }
+    .points-big { font-size: 56px; font-weight: 800; line-height: 1; margin: 8px 0; }
+    .points-unit { font-size: 16px; font-weight: 500; opacity: 0.85; margin-left: 6px; }
+    .point-meta { font-size: 13px; opacity: 0.9; margin-bottom: 12px; }
+    .checkin-btn { background: white; color: var(--line-green); width: 100%; padding: 14px; font-size: 16px; }
+    .checkin-btn:disabled { background: rgba(255,255,255,0.6); color: rgba(6,199,85,0.6); }
+    .toast { margin-top: 10px; padding: 8px 12px; background: rgba(255,255,255,0.18); border-radius: 6px; font-size: 13px; min-height: 1em; }
   </style>
 </head>
 <body>
@@ -91,6 +99,14 @@
         <button class="secondary" id="btnLogout" disabled>Logout</button>
       </div>
       <div class="status" id="status">未初期化</div>
+    </div>
+
+    <div class="card point-card" id="pointCard" hidden>
+      <h2>ポイントカード</h2>
+      <div><span class="points-big" id="pointsValue">0</span><span class="points-unit">pt</span></div>
+      <div class="point-meta" id="pointMeta">来店履歴なし</div>
+      <button class="checkin-btn" id="btnCheckin">来店チェックイン (+1pt)</button>
+      <div class="toast" id="checkinToast"></div>
     </div>
 
     <div class="card" id="profileCard" hidden>
@@ -133,6 +149,8 @@
     };
 
     const DEFAULT_LIFF_ID = "2009931254-QLYpvjDp";
+    const POINT_API_URL = ""; // GASのウェブアプリURLを設定すると来店ポイント機能が有効になる
+    let currentProfile = null;
     const savedId = localStorage.getItem(STORAGE_KEY);
     const initialId = savedId || DEFAULT_LIFF_ID;
     $("liffId").value = initialId;
@@ -208,6 +226,7 @@
     async function renderProfile() {
       try {
         const profile = await liff.getProfile();
+        currentProfile = profile;
         $("displayName").textContent = profile.displayName || "";
         $("userId").textContent = profile.userId || "";
         $("statusMessage").textContent = profile.statusMessage || "";
@@ -222,10 +241,59 @@
         $("idToken").textContent = decoded ? JSON.stringify(decoded, null, 2) : "(なし)";
         $("accessToken").textContent = liff.getAccessToken() || "(なし)";
         $("tokenCard").hidden = false;
+
+        if (POINT_API_URL) {
+          $("pointCard").hidden = false;
+          await refreshPoints();
+        }
       } catch (e) {
         setStatus("profile取得失敗: " + (e && e.message ? e.message : e), "err");
       }
     }
+
+    async function callPointApi(action) {
+      const res = await fetch(POINT_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action,
+          userId: currentProfile.userId,
+          displayName: currentProfile.displayName,
+        }),
+      });
+      return res.json();
+    }
+
+    async function refreshPoints() {
+      try {
+        const r = await callPointApi("status");
+        if (!r.ok) throw new Error(r.error || "status failed");
+        $("pointsValue").textContent = r.points;
+        $("pointMeta").textContent = r.lastVisitAt
+          ? "最終来店: " + r.lastVisitAt + "（累計 " + r.visitCount + " 回）"
+          : "来店履歴なし";
+      } catch (e) {
+        $("checkinToast").textContent = "ポイント取得失敗: " + e.message;
+      }
+    }
+
+    $("btnCheckin").addEventListener("click", async () => {
+      if (!currentProfile) return;
+      const btn = $("btnCheckin");
+      btn.disabled = true;
+      $("checkinToast").textContent = "送信中…";
+      try {
+        const r = await callPointApi("checkin");
+        if (!r.ok) throw new Error(r.error || "checkin failed");
+        $("pointsValue").textContent = r.points;
+        $("pointMeta").textContent = "累計 " + r.visitCount + " 回 来店";
+        $("checkinToast").textContent = r.message;
+      } catch (e) {
+        $("checkinToast").textContent = "失敗: " + e.message;
+      } finally {
+        btn.disabled = false;
+      }
+    });
   </script>
 </body>
 </html>
